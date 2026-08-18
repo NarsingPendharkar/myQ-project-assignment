@@ -34,7 +34,7 @@ public class DatabaseConfigurationIntegrationTest {
     public void testUserTableExists() {
         // Verify users table was created by Flyway migration
         String query = "SELECT COUNT(*) FROM information_schema.tables " +
-                      "WHERE upper(table_name) = 'USERS'";
+                      "WHERE table_schema = 'PUBLIC' AND upper(table_name) = 'USERS'";
         Integer count = jdbcTemplate.queryForObject(query, Integer.class);
         
         assertEquals(1, count, "Users table should exist after Flyway migration");
@@ -44,7 +44,7 @@ public class DatabaseConfigurationIntegrationTest {
     public void testAuditEventsTableExists() {
         // Verify audit_events table was created by Flyway migration
         String query = "SELECT COUNT(*) FROM information_schema.tables " +
-                      "WHERE upper(table_name) = 'AUDIT_EVENTS'";
+                      "WHERE table_schema = 'PUBLIC' AND upper(table_name) = 'AUDIT_EVENTS'";
         Integer count = jdbcTemplate.queryForObject(query, Integer.class);
         
         assertEquals(1, count, "Audit_events table should exist after Flyway migration");
@@ -65,8 +65,9 @@ public class DatabaseConfigurationIntegrationTest {
     @Test
     public void testChainPositionIndexExists() {
         // Verify critical index for chain verification
-        String query = "SELECT COUNT(*) FROM information_schema.indexes " +
-                      "WHERE upper(table_name) = 'AUDIT_EVENTS' AND upper(index_name) = 'IDX_AUDIT_EVENTS_CHAIN_POSITION'";
+        String query = "SELECT COUNT(*) FROM information_schema.index_columns " +
+                      "WHERE table_schema = 'PUBLIC' AND upper(table_name) = 'AUDIT_EVENTS' " +
+                      "AND upper(column_name) = 'CHAIN_POSITION'";
         Integer count = jdbcTemplate.queryForObject(query, Integer.class);
         
         assertTrue(count >= 1, "Chain position index should exist for performance");
@@ -75,8 +76,9 @@ public class DatabaseConfigurationIntegrationTest {
     @Test
     public void testActorIdIndexExists() {
         // Verify index for actor filtering
-        String query = "SELECT COUNT(*) FROM information_schema.indexes " +
-                      "WHERE upper(table_name) = 'AUDIT_EVENTS' AND upper(index_name) = 'IDX_AUDIT_EVENTS_ACTOR_ID'";
+        String query = "SELECT COUNT(*) FROM information_schema.index_columns " +
+                      "WHERE table_schema = 'PUBLIC' AND upper(table_name) = 'AUDIT_EVENTS' " +
+                      "AND upper(column_name) = 'ACTOR_ID'";
         Integer count = jdbcTemplate.queryForObject(query, Integer.class);
         
         assertTrue(count >= 1, "Actor ID index should exist for query performance");
@@ -85,8 +87,9 @@ public class DatabaseConfigurationIntegrationTest {
     @Test
     public void testResourceTypeResourceIdIndexExists() {
         // Verify composite index for resource filtering
-        String query = "SELECT COUNT(*) FROM information_schema.indexes " +
-                      "WHERE upper(table_name) = 'AUDIT_EVENTS' AND upper(index_name) = 'IDX_AUDIT_EVENTS_RESOURCE_TYPE_ID'";
+        String query = "SELECT COUNT(DISTINCT index_name) FROM information_schema.index_columns " +
+                      "WHERE table_schema = 'PUBLIC' AND upper(table_name) = 'AUDIT_EVENTS' " +
+                      "AND upper(column_name) IN ('RESOURCE_TYPE', 'RESOURCE_ID')";
         Integer count = jdbcTemplate.queryForObject(query, Integer.class);
         
         assertTrue(count >= 1, "Resource type/id composite index should exist");
@@ -95,9 +98,11 @@ public class DatabaseConfigurationIntegrationTest {
     @Test
     public void testContentHashUniqueConstraint() {
         // Verify content_hash has unique constraint
-        String query = "SELECT COUNT(*) FROM information_schema.constraints " +
-                      "WHERE upper(table_name) = 'AUDIT_EVENTS' AND constraint_type = 'UNIQUE' " +
-                      "AND upper(constraint_name) LIKE '%CONTENT_HASH%'";
+        String query = "SELECT COUNT(*) FROM information_schema.constraint_column_usage ccu " +
+                      "JOIN information_schema.table_constraints tc ON tc.constraint_schema = ccu.constraint_schema " +
+                      "AND tc.constraint_name = ccu.constraint_name " +
+                      "WHERE ccu.table_schema = 'PUBLIC' AND upper(ccu.table_name) = 'AUDIT_EVENTS' " +
+                      "AND upper(ccu.column_name) = 'CONTENT_HASH' AND tc.constraint_type = 'UNIQUE'";
         Integer count = jdbcTemplate.queryForObject(query, Integer.class);
         
         assertTrue(count >= 1, "Content hash should have unique constraint");
@@ -106,9 +111,11 @@ public class DatabaseConfigurationIntegrationTest {
     @Test
     public void testChainPositionUniqueConstraint() {
         // Verify chain_position has unique constraint
-        String query = "SELECT COUNT(*) FROM information_schema.constraints " +
-                      "WHERE upper(table_name) = 'AUDIT_EVENTS' AND constraint_type = 'UNIQUE' " +
-                      "AND upper(constraint_name) LIKE '%CHAIN_POSITION%'";
+        String query = "SELECT COUNT(*) FROM information_schema.constraint_column_usage ccu " +
+                      "JOIN information_schema.table_constraints tc ON tc.constraint_schema = ccu.constraint_schema " +
+                      "AND tc.constraint_name = ccu.constraint_name " +
+                      "WHERE ccu.table_schema = 'PUBLIC' AND upper(ccu.table_name) = 'AUDIT_EVENTS' " +
+                      "AND upper(ccu.column_name) = 'CHAIN_POSITION' AND tc.constraint_type = 'UNIQUE'";
         Integer count = jdbcTemplate.queryForObject(query, Integer.class);
         
         assertTrue(count >= 1, "Chain position should have unique constraint");

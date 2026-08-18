@@ -2,7 +2,6 @@ package com.schwab.audit.service;
 
 import com.schwab.audit.dto.request.CreateAuditEventRequest;
 import com.schwab.audit.dto.response.AuditEventResponse;
-import com.schwab.audit.entity.AuditEvent;
 import com.schwab.audit.repository.AuditEventRepository;
 import com.schwab.audit.util.Constants;
 import com.schwab.audit.util.HashUtils;

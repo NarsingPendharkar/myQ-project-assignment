@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.NoSuchElementException;
 
 /**
  * Service for audit event management.
@@ -59,8 +60,15 @@ public class AuditEventService {
         // Get the last event to determine chain position and previous hash
         Optional<AuditEvent> lastEvent = auditEventRepository.findLastEvent();
 
+        // Resolve the timestamp once so the value used in the hash is exactly the
+        // value persisted on the event. Calling LocalDateTime.now() twice can
+        // otherwise create an unverifiable event when the timestamp is omitted.
+        LocalDateTime eventTimestamp = request.getTimestamp() != null
+                ? request.getTimestamp()
+                : LocalDateTime.now();
+
         // Build content for hashing
-        String eventContent = buildEventContent(request);
+        String eventContent = buildEventContent(request, eventTimestamp);
         String contentHash = hashUtils.computeSha256(eventContent);
 
         // Check for duplicate event (same content)
@@ -80,7 +88,7 @@ public class AuditEventService {
                 .resourceType(request.getResourceType())
                 .resourceId(request.getResourceId())
                 .payload(request.getPayload())
-                .timestamp(request.getTimestamp() != null ? request.getTimestamp() : LocalDateTime.now())
+                .timestamp(eventTimestamp)
                 .contentHash(contentHash)
                 .previousHash(previousHash)
                 .chainPosition(chainPosition)
@@ -121,7 +129,7 @@ public class AuditEventService {
         AuditEvent event = auditEventRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Audit event not found - id: {}", id);
-                    return new RuntimeException("Audit event not found");
+                    return new NoSuchElementException("Audit event not found");
                 });
 
         return mapToDetailResponse(event);
@@ -302,7 +310,7 @@ public class AuditEventService {
      * @param request the event creation request
      * @return concatenated event content
      */
-    private String buildEventContent(CreateAuditEventRequest request) {
+    private String buildEventContent(CreateAuditEventRequest request, LocalDateTime timestamp) {
         return String.format(
                 "%s|%s|%s|%s|%s|%s",
                 request.getEventType(),
@@ -310,7 +318,7 @@ public class AuditEventService {
                 request.getResourceType(),
                 request.getResourceId(),
                 request.getPayload() != null ? request.getPayload() : "",
-                request.getTimestamp() != null ? request.getTimestamp().toString() : LocalDateTime.now().toString()
+                timestamp.toString()
         );
     }
 

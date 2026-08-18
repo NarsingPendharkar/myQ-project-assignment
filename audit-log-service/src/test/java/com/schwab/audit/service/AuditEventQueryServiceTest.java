@@ -1,6 +1,7 @@
 package com.schwab.audit.service;
 
 import com.schwab.audit.dto.request.AuditEventFilterRequest;
+import com.schwab.audit.dto.response.AuditEventResponse;
 import com.schwab.audit.entity.AuditEvent;
 import com.schwab.audit.repository.AuditEventRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,7 +74,7 @@ class AuditEventQueryServiceTest {
                 .build();
 
         // When
-        Page<?> result = queryService.executeFilteredQuery(filter);
+        Page<AuditEventResponse> result = queryService.executeFilteredQuery(filter);
 
         // Then
         assertEquals(1, result.getTotalElements());
@@ -100,9 +102,22 @@ class AuditEventQueryServiceTest {
         AuditEventFilterRequest filter = AuditEventFilterRequest.builder().build();
 
         // When
-        Page<?> result = queryService.executeFilteredQuery(filter);
+        Page<AuditEventResponse> result = queryService.executeFilteredQuery(filter);
 
         // Then
         assertEquals(2, result.getTotalElements());
+        assertEquals(2L, result.getContent().get(0).getChainPosition());
+    }
+
+    @Test
+    @DisplayName("Should apply safe defaults when pagination and sorting are omitted")
+    void testDefaultsAppliedByBuilder() {
+        AuditEventFilterRequest filter = AuditEventFilterRequest.builder().build();
+
+        Page<AuditEventResponse> result = queryService.executeFilteredQuery(filter);
+
+        assertEquals(0, result.getNumber());
+        assertEquals(20, result.getSize());
+        assertEquals(Sort.Direction.DESC, result.getSort().getOrderFor("chainPosition").getDirection());
     }
 }

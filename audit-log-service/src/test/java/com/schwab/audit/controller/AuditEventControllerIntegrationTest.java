@@ -8,6 +8,7 @@ import com.schwab.audit.entity.enums.UserRole;
 import com.schwab.audit.repository.AuditEventRepository;
 import com.schwab.audit.repository.UserRepository;
 import com.schwab.audit.security.JwtService;
+import com.schwab.audit.util.HashUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,9 @@ class AuditEventControllerIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private HashUtils hashUtils;
 
     private String writerToken;
     private String auditorToken;
@@ -206,6 +210,9 @@ class AuditEventControllerIntegrationTest {
                 .chainPosition(1L)
                 .archived(false)
                 .build();
+        event.setContentHash(hashUtils.computeSha256(String.format("%s|%s|%s|%s|%s|%s",
+                event.getEventType(), event.getActorId(), event.getResourceType(), event.getResourceId(),
+                event.getPayload(), event.getTimestamp())));
 
         AuditEvent saved = auditEventRepository.save(event);
 
@@ -360,6 +367,9 @@ class AuditEventControllerIntegrationTest {
                 .chainPosition(1L)
                 .archived(false)
                 .build();
+        event.setContentHash(hashUtils.computeSha256(String.format("%s|%s|%s|%s|%s|%s",
+                event.getEventType(), event.getActorId(), event.getResourceType(), event.getResourceId(),
+                event.getPayload(), event.getTimestamp())));
 
         AuditEvent saved = auditEventRepository.save(event);
 

@@ -3,6 +3,7 @@ package com.schwab.audit.service;
 import com.schwab.audit.entity.AuditEvent;
 import com.schwab.audit.repository.AuditEventRepository;
 import com.schwab.audit.util.Constants;
+import com.schwab.audit.util.HashUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,23 +35,30 @@ class ChainVerificationServiceTest {
     private AuditEvent event2;
     private AuditEvent event3;
 
+    @Autowired
+    private HashUtils hashUtils;
+
     @BeforeEach
     void setUp() {
         auditEventRepository.deleteAll();
 
         // Create a valid chain
+        LocalDateTime timestamp1 = LocalDateTime.now();
+        LocalDateTime timestamp2 = timestamp1.plusSeconds(1);
+        LocalDateTime timestamp3 = timestamp2.plusSeconds(1);
+
         event1 = AuditEvent.builder()
                 .eventType("USER_LOGIN")
                 .actorId("actor1")
                 .resourceType("USER_SESSION")
                 .resourceId("session1")
                 .payload("{\"ip\": \"192.168.1.1\"}")
-                .timestamp(LocalDateTime.now())
-                .contentHash("hash1")
+                .timestamp(timestamp1)
                 .previousHash(Constants.GENESIS_HASH)
                 .chainPosition(1L)
                 .archived(false)
                 .build();
+        event1.setContentHash(hashFor(event1));
 
         event2 = AuditEvent.builder()
                 .eventType("RECORD_UPDATED")
@@ -58,12 +66,12 @@ class ChainVerificationServiceTest {
                 .resourceType("ACCOUNT")
                 .resourceId("account1")
                 .payload("{\"field\": \"email\"}")
-                .timestamp(LocalDateTime.now())
-                .contentHash("hash2")
-                .previousHash("hash1")
+                .timestamp(timestamp2)
+                .previousHash(event1.getContentHash())
                 .chainPosition(2L)
                 .archived(false)
                 .build();
+        event2.setContentHash(hashFor(event2));
 
         event3 = AuditEvent.builder()
                 .eventType("RECORD_UPDATED")
@@ -71,12 +79,12 @@ class ChainVerificationServiceTest {
                 .resourceType("ACCOUNT")
                 .resourceId("account1")
                 .payload("{\"field\": \"name\"}")
-                .timestamp(LocalDateTime.now())
-                .contentHash("hash3")
-                .previousHash("hash2")
+                .timestamp(timestamp3)
+                .previousHash(event2.getContentHash())
                 .chainPosition(3L)
                 .archived(false)
                 .build();
+        event3.setContentHash(hashFor(event3));
 
         auditEventRepository.saveAll(java.util.List.of(event1, event2, event3));
     }
@@ -215,7 +223,7 @@ class ChainVerificationServiceTest {
     @DisplayName("Should verify event content hash")
     void testVerifyEventContentHash() {
         // When - Reconstruct the hash
-        String expectedHash = "hash1";
+        String expectedHash = event1.getContentHash();
         boolean isValid = chainVerificationService.verifyEventContentHash(event1, expectedHash);
 
         // Then
@@ -258,5 +266,11 @@ class ChainVerificationServiceTest {
 
         // Then - Should have verified first 2 events
         assertEquals(2, validCount);
+    }
+
+    private String hashFor(AuditEvent event) {
+        return hashUtils.computeSha256(String.format("%s|%s|%s|%s|%s|%s",
+                event.getEventType(), event.getActorId(), event.getResourceType(), event.getResourceId(),
+                event.getPayload() == null ? "" : event.getPayload(), event.getTimestamp()));
     }
 }

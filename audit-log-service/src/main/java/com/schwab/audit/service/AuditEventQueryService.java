@@ -32,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AuditEventQueryService {
 
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final AuditEventRepository auditEventRepository;
 
     /**
@@ -55,19 +57,28 @@ public class AuditEventQueryService {
         /*
          * Build pagination and sorting.
          */
+        String sortBy = filter.getSortBy() == null || filter.getSortBy().isBlank()
+                ? "chainPosition"
+                : filter.getSortBy();
+        String sortDirection = filter.getSortDirection() == null
+                ? "DESC"
+                : filter.getSortDirection();
+        int page = Math.max(filter.getPage(), 0);
+        int size = Math.min(Math.max(filter.getSize(), 1), MAX_PAGE_SIZE);
+
         Sort.Direction direction =
-                "ASC".equalsIgnoreCase(filter.getSortDirection())
+                "ASC".equalsIgnoreCase(sortDirection)
                         ? Sort.Direction.ASC
                         : Sort.Direction.DESC;
 
         Sort sort = Sort.by(
                 direction,
-                filter.getSortBy()
+                sortBy
         );
 
         Pageable pageable = PageRequest.of(
-                filter.getPage(),
-                filter.getSize(),
+                page,
+                size,
                 sort
         );
 

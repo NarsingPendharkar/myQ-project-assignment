@@ -41,8 +41,15 @@ public class AuditEventFilterRequest {
     private String payloadContains;  // Simple text search in payload
     
     // Pagination
+    @Builder.Default
     private int page = 0;
+
+    @Builder.Default
     private int size = 20;
+
+    @Builder.Default
     private String sortBy = "chainPosition";  // Field to sort by
+
+    @Builder.Default
     private String sortDirection = "DESC";  // ASC or DESC
 }
