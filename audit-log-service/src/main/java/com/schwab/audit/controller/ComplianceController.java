@@ -1,5 +1,6 @@
 package com.schwab.audit.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.schwab.audit.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -108,7 +109,7 @@ public class ComplianceController {
     @Operation(summary = "Redact event fields")
     public ResponseEntity<Map<String, String>> redactEvent(
             @PathVariable Long eventId,
-            @RequestBody Map<String, Object> request) {
+            @RequestBody Map<String, Object> request) throws JsonProcessingException {
         
         log.info("Redacting event: {}", eventId);
         

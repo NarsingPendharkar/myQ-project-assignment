@@ -42,7 +42,7 @@ public class ChainVerificationService {
     public boolean verifyCompleteChain() {
         log.info("Starting complete chain verification");
 
-        long totalEvents = auditEventRepository.countAll();
+        long totalEvents = auditEventRepository.count();
         if (totalEvents == 0) {
             log.info("No events to verify - chain is valid (empty)");
             return true;

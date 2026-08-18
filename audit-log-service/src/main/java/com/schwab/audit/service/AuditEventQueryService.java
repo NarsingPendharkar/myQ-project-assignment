@@ -13,12 +13,18 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
  * Service for advanced filtering and querying of audit events.
- * Supports complex filter criteria combinations.
+ *
+ * Supports filtering by:
+ * - event type
+ * - actor
+ * - resource type
+ * - resource ID
+ * - timestamp range
+ * - archived status
+ *
+ * Supports pagination and sorting.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,79 +36,189 @@ public class AuditEventQueryService {
 
     /**
      * Executes an advanced filtered query with multiple criteria.
-     * 
-     * @param filter the filter request with multiple optional criteria
-     * @return page of matching events
+     *
+     * @param filter filter request containing optional criteria
+     * @return page of matching audit events
      */
-    public Page<AuditEventResponse> executeFilteredQuery(AuditEventFilterRequest filter) {
-        log.debug("Executing filtered query with criteria: eventType={}, actor={}, resource={}, archived={}", 
-                 filter.getEventType(), filter.getActorId(), filter.getResourceType(), filter.getArchived());
+    public Page<AuditEventResponse> executeFilteredQuery(
+            AuditEventFilterRequest filter) {
 
-        // Build pageable with sorting
-        Sort.Direction direction = "ASC".equalsIgnoreCase(filter.getSortDirection()) 
-            ? Sort.Direction.ASC : Sort.Direction.DESC;
-        Sort sort = Sort.by(direction, filter.getSortBy());
-        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
+        log.debug(
+                "Executing filtered query: eventType={}, actorId={}, resourceType={}, resourceId={}, archived={}",
+                filter.getEventType(),
+                filter.getActorId(),
+                filter.getResourceType(),
+                filter.getResourceId(),
+                filter.getArchived()
+        );
 
-        // Apply filters in order of specificity
-        if (filter.getEventType() != null && filter.getActorId() != null && 
-            filter.getResourceType() != null && filter.getResourceId() != null) {
-            // Most specific: all four criteria
-            return auditEventRepository.findByEventTypeAndActorIdAndResourceTypeAndResourceId(
-                    filter.getEventType(), filter.getActorId(), 
-                    filter.getResourceType(), filter.getResourceId(), pageable)
-                .map(this::mapToResponse);
+        /*
+         * Build pagination and sorting.
+         */
+        Sort.Direction direction =
+                "ASC".equalsIgnoreCase(filter.getSortDirection())
+                        ? Sort.Direction.ASC
+                        : Sort.Direction.DESC;
+
+        Sort sort = Sort.by(
+                direction,
+                filter.getSortBy()
+        );
+
+        Pageable pageable = PageRequest.of(
+                filter.getPage(),
+                filter.getSize(),
+                sort
+        );
+
+        /*
+         * ---------------------------------------------------------
+         * 1. All four criteria
+         * ---------------------------------------------------------
+         */
+        if (filter.getEventType() != null
+                && filter.getActorId() != null
+                && filter.getResourceType() != null
+                && filter.getResourceId() != null) {
+
+            return auditEventRepository
+                    .findByEventTypeAndActorIdAndResourceTypeAndResourceId(
+                            filter.getEventType(),
+                            filter.getActorId(),
+                            filter.getResourceType(),
+                            filter.getResourceId(),
+                            pageable
+                    )
+                    .map(this::mapToResponse);
         }
 
-        if (filter.getResourceType() != null && filter.getResourceId() != null) {
-            // By resource with optional event type filter
-            var events = auditEventRepository.findByResourceTypeAndResourceId(
-                    filter.getResourceType(), filter.getResourceId(), pageable);
-            if (filter.getEventType() != null) {
-                var filtered = events.stream()
-                        .filter(e -> e.getEventType().equals(filter.getEventType()))
-                        .collect(Collectors.toList());
-                return new org.springframework.data.domain.PageImpl<>(
-                        filtered.stream().map(this::mapToResponse).collect(Collectors.toList()),
-                        pageable, events.getTotalElements());
-            }
-            return events.map(this::mapToResponse);
+        /*
+         * ---------------------------------------------------------
+         * 2. Resource + event type
+         * ---------------------------------------------------------
+         *
+         * IMPORTANT:
+         * Filtering is performed by the database rather than
+         * filtering a single Page in Java.
+         */
+        if (filter.getResourceType() != null
+                && filter.getResourceId() != null
+                && filter.getEventType() != null) {
+
+            return auditEventRepository
+                    .findByResourceTypeAndResourceIdAndEventType(
+                            filter.getResourceType(),
+                            filter.getResourceId(),
+                            filter.getEventType(),
+                            pageable
+                    )
+                    .map(this::mapToResponse);
         }
 
+        /*
+         * ---------------------------------------------------------
+         * 3. Resource
+         * ---------------------------------------------------------
+         */
+        if (filter.getResourceType() != null
+                && filter.getResourceId() != null) {
+
+            return auditEventRepository
+                    .findByResourceTypeAndResourceId(
+                            filter.getResourceType(),
+                            filter.getResourceId(),
+                            pageable
+                    )
+                    .map(this::mapToResponse);
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * 4. Actor
+         * ---------------------------------------------------------
+         */
         if (filter.getActorId() != null) {
-            // By actor
-            return auditEventRepository.findByActorId(filter.getActorId(), pageable)
-                .map(this::mapToResponse);
+
+            return auditEventRepository
+                    .findByActorId(
+                            filter.getActorId(),
+                            pageable
+                    )
+                    .map(this::mapToResponse);
         }
 
+        /*
+         * ---------------------------------------------------------
+         * 5. Event type
+         * ---------------------------------------------------------
+         */
         if (filter.getEventType() != null) {
-            // By event type
-            return auditEventRepository.findByEventType(filter.getEventType(), pageable)
-                .map(this::mapToResponse);
+
+            return auditEventRepository
+                    .findByEventType(
+                            filter.getEventType(),
+                            pageable
+                    )
+                    .map(this::mapToResponse);
         }
 
-        if (filter.getStartTime() != null && filter.getEndTime() != null) {
-            // By timestamp range
-            return auditEventRepository.findByTimestampRange(
-                    filter.getStartTime(), filter.getEndTime(), pageable)
-                .map(this::mapToResponse);
+        /*
+         * ---------------------------------------------------------
+         * 6. Timestamp range
+         * ---------------------------------------------------------
+         */
+        if (filter.getStartTime() != null
+                && filter.getEndTime() != null) {
+
+            return auditEventRepository
+                    .findByTimestampRange(
+                            filter.getStartTime(),
+                            filter.getEndTime(),
+                            pageable
+                    )
+                    .map(this::mapToResponse);
         }
 
+        /*
+         * ---------------------------------------------------------
+         * 7. Archived status
+         * ---------------------------------------------------------
+         *
+         * The .map(this::mapToResponse) is required because the
+         * repository returns Page<AuditEvent>, while this service
+         * returns Page<AuditEventResponse>.
+         */
         if (filter.getArchived() != null) {
-            // By archive status
-            return filter.getArchived() 
-                ? auditEventRepository.findByArchivedTrue(pageable)
-                : auditEventRepository.findByArchivedFalse(pageable);
+
+            if (filter.getArchived()) {
+
+                return auditEventRepository
+                        .findByArchivedTrue(pageable)
+                        .map(this::mapToResponse);
+
+            } else {
+
+                return auditEventRepository
+                        .findByArchivedFalse(pageable)
+                        .map(this::mapToResponse);
+            }
         }
 
-        // No filters - return all
-        return auditEventRepository.findAll(pageable).map(this::mapToResponse);
+        /*
+         * ---------------------------------------------------------
+         * 8. No filters
+         * ---------------------------------------------------------
+         */
+        return auditEventRepository
+                .findAll(pageable)
+                .map(this::mapToResponse);
     }
 
     /**
-     * Maps AuditEvent entity to response DTO.
+     * Converts AuditEvent entity to response DTO.
      */
     private AuditEventResponse mapToResponse(AuditEvent event) {
+
         return AuditEventResponse.builder()
                 .id(event.getId())
                 .eventType(event.getEventType())
@@ -119,4 +235,6 @@ public class AuditEventQueryService {
                 .archived(event.getArchived())
                 .build();
     }
+
+
 }

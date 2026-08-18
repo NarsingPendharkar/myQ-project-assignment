@@ -14,13 +14,16 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  * - JPA auditing for createdAt/updatedAt timestamps
  * - Lazy loading prevention via open-in-view=false
  */
+
 @Configuration
 @EnableJpaRepositories(
-    basePackages = "com.schwab.audit.repository",
-    repositoryImplementationPostfix = "Impl"
+        basePackages = "com.schwab.audit.repository",
+        repositoryImplementationPostfix = "Impl"
 )
 @EnableTransactionManagement
-@EnableJpaAuditing(auditorAwareRef = "auditorProvider", dateTimeProvider = "dateTimeProvider")
+@EnableJpaAuditing(
+        auditorAwareRef = "auditorProvider"
+)
 public class JpaConfig {
 
     /**

@@ -92,7 +92,7 @@ public class ExportService {
         report.append("=== AUDIT LOG REPORT ===\n");
         report.append("Generated: ").append(LocalDateTime.now()).append("\n\n");
 
-        long totalEvents = auditEventRepository.countAll();
+        long totalEvents = auditEventRepository.count();
         long archivedCount = auditEventRepository.countByArchivedTrue();
         long unarchivedCount = auditEventRepository.countByArchivedFalse();
 

@@ -125,7 +125,7 @@ public class ComplianceReportingService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("checkDate", LocalDateTime.now());
 
-        long totalEvents = auditEventRepository.countAll();
+        long totalEvents = auditEventRepository.count();
         result.put("totalEvents", totalEvents);
 
         // Check archive coverage

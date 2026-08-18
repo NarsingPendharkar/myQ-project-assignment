@@ -42,8 +42,8 @@ public class AuditingConfig {
      * Provides the current date/time for JPA auditing.
      * Uses server time for consistency.
      */
-    @Bean
-    public DateTimeProvider dateTimeProvider() {
-        return () -> Optional.of(TemporalAccessor.from(LocalDateTime.now()));
-    }
+//    @Bean
+//    public DateTimeProvider dateTimeProvider() {
+//        return () -> Optional.of(TemporalAccessor.from(LocalDateTime.now()));
+//    }
 }

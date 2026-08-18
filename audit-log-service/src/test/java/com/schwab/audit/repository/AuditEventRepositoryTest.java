@@ -9,7 +9,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
@@ -202,7 +201,7 @@ class AuditEventRepositoryTest {
     @DisplayName("Should count total events")
     void testCountAll() {
         // When
-        long count = auditEventRepository.countAll();
+        long count = auditEventRepository.count();
 
         // Then
         assertEquals(3, count);

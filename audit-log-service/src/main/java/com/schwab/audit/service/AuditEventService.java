@@ -4,22 +4,18 @@ import com.schwab.audit.dto.request.CreateAuditEventRequest;
 import com.schwab.audit.dto.response.AuditEventDetailResponse;
 import com.schwab.audit.dto.response.AuditEventResponse;
 import com.schwab.audit.entity.AuditEvent;
-import com.schwab.audit.exception.ForbiddenException;
 import com.schwab.audit.repository.AuditEventRepository;
 import com.schwab.audit.util.Constants;
 import com.schwab.audit.util.HashUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Service for audit event management.
@@ -225,7 +221,7 @@ public class AuditEventService {
      * @return total count
      */
     public long getTotalEventCount() {
-        return auditEventRepository.countAll();
+        return auditEventRepository.count();
     }
 
     /**

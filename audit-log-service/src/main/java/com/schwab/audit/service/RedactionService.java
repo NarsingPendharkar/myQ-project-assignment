@@ -1,5 +1,6 @@
 package com.schwab.audit.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.schwab.audit.entity.AuditEvent;
 import com.schwab.audit.entity.AuditEventRedaction;
@@ -42,7 +43,7 @@ public class RedactionService {
      * @return updated event
      */
     @Transactional(readOnly = false)
-    public AuditEvent redactEvent(Long eventId, List<String> fieldsToRedact, String reason, String redactedBy) {
+    public AuditEvent redactEvent(Long eventId, List<String> fieldsToRedact, String reason, String redactedBy) throws JsonProcessingException {
         log.info("Redacting event {} - fields: {}, reason: {}", eventId, fieldsToRedact, reason);
 
         AuditEvent event = auditEventRepository.findById(eventId)

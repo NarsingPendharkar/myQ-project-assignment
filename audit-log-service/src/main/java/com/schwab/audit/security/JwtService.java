@@ -2,9 +2,13 @@ package com.schwab.audit.security;
 
 import com.schwab.audit.entity.User;
 import com.schwab.audit.util.Constants;
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -17,11 +21,10 @@ import java.util.Date;
 
 /**
  * Service for JWT token generation, validation, and claims extraction.
- * 
- * Provides stateless JWT-based authentication without session management.
+ *
+ * Compatible with JJWT 0.12.x.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class JwtService {
 
@@ -31,145 +34,175 @@ public class JwtService {
     @Value("${app.jwt.expiry-hours:24}")
     private long jwtExpiryHours;
 
-    @Value("${app.jwt.algorithm:HS256}")
-    private String jwtAlgorithm;
-
     /**
-     * Generates a new JWT token for the authenticated user.
-     * 
-     * @param user the authenticated user
-     * @return JWT token string
+     * Generates a JWT token for the authenticated user.
+     *
+     * @param user authenticated user
+     * @return JWT token
      */
     public String generateToken(User user) {
         try {
             Instant now = Instant.now();
-            Instant expiryTime = now.plus(jwtExpiryHours, ChronoUnit.HOURS);
+            Instant expiryTime =
+                    now.plus(jwtExpiryHours, ChronoUnit.HOURS);
 
             SecretKey key = getSigningKey();
 
             return Jwts.builder()
                     .subject(user.getUsername())
-                    .claim(Constants.JWT_CLAIM_ROLE, user.getRole().name())
+                    .claim(
+                            Constants.JWT_CLAIM_ROLE,
+                            user.getRole().name()
+                    )
                     .claim("userId", user.getId())
                     .issuedAt(Date.from(now))
                     .expiration(Date.from(expiryTime))
-                    .signWith(key, SignatureAlgorithm.HS256)
+                    .signWith(key)
                     .compact();
+
         } catch (Exception e) {
             log.error("Error generating JWT token", e);
-            throw new RuntimeException("Failed to generate JWT token", e);
+            throw new IllegalStateException(
+                    "Failed to generate JWT token",
+                    e
+            );
         }
     }
 
     /**
-     * Validates a JWT token and returns true if valid.
-     * 
-     * @param token the JWT token to validate
-     * @return true if token is valid and not expired
+     * Validates a JWT token.
+     *
+     * @param token JWT token
+     * @return true if token is valid
      */
     public boolean validateToken(String token) {
+
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+
         try {
-            if (token == null || token.isEmpty()) {
-                return false;
-            }
-
-            SecretKey key = getSigningKey();
-            Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token);
-
+            getClaims(token);
             return true;
+
         } catch (ExpiredJwtException e) {
             log.debug("JWT token has expired");
             return false;
+
         } catch (UnsupportedJwtException e) {
             log.debug("JWT token is unsupported");
             return false;
+
         } catch (MalformedJwtException e) {
-            log.debug("Invalid JWT token");
+            log.debug("JWT token is malformed");
             return false;
-        } catch (SignatureException e) {
-            log.debug("Invalid JWT signature");
+
+        } catch (JwtException e) {
+            log.debug("JWT token validation failed");
             return false;
+
         } catch (IllegalArgumentException e) {
-            log.debug("JWT claims string is empty");
+            log.debug("JWT token is invalid");
             return false;
         }
     }
 
     /**
-     * Extracts the username from a valid JWT token.
-     * 
-     * @param token the JWT token
-     * @return the username
-     * @throws IllegalArgumentException if token is invalid
+     * Extracts username from JWT.
+     *
+     * @param token JWT token
+     * @return username
      */
     public String extractUsername(String token) {
-        try {
-            SecretKey key = getSigningKey();
-            return Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .getSubject();
-        } catch (JwtException e) {
-            throw new IllegalArgumentException("Invalid JWT token", e);
-        }
+
+        return getClaims(token).getSubject();
     }
 
     /**
-     * Extracts the role from a valid JWT token.
-     * 
-     * @param token the JWT token
-     * @return the role name
-     * @throws IllegalArgumentException if token is invalid
+     * Extracts role from JWT.
+     *
+     * @param token JWT token
+     * @return role
      */
     public String extractRole(String token) {
-        try {
-            SecretKey key = getSigningKey();
-            return Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .get(Constants.JWT_CLAIM_ROLE, String.class);
-        } catch (JwtException e) {
-            throw new IllegalArgumentException("Invalid JWT token", e);
-        }
+
+        return getClaims(token)
+                .get(Constants.JWT_CLAIM_ROLE, String.class);
     }
 
     /**
-     * Extracts the expiry time from a valid JWT token.
-     * 
-     * @param token the JWT token
-     * @return expiry time in seconds from now (or negative if expired)
+     * Extracts user ID from JWT.
+     *
+     * @param token JWT token
+     * @return user ID
+     */
+    public Long extractUserId(String token) {
+
+        return getClaims(token)
+                .get("userId", Long.class);
+    }
+
+    /**
+     * Returns the number of seconds remaining until expiry.
+     *
+     * @param token JWT token
+     * @return seconds remaining
      */
     public long extractExpirySeconds(String token) {
+
+        Date expiry = getClaims(token).getExpiration();
+
+        return (expiry.getTime() - System.currentTimeMillis()) / 1000;
+    }
+
+    /**
+     * Parses and validates JWT claims.
+     *
+     * JJWT 0.12.x API uses:
+     *
+     * Jwts.parser()
+     *     .verifyWith(key)
+     *     .build()
+     *     .parseSignedClaims(token)
+     */
+    private Claims getClaims(String token) {
+
         try {
             SecretKey key = getSigningKey();
-            Date expiry = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .getExpiration();
 
-            return (expiry.getTime() - System.currentTimeMillis()) / 1000;
+            return Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+        } catch (ExpiredJwtException e) {
+            throw e;
+
         } catch (JwtException e) {
-            throw new IllegalArgumentException("Invalid JWT token", e);
+            throw new IllegalArgumentException(
+                    "Invalid JWT token",
+                    e
+            );
         }
     }
 
     /**
-     * Gets the signing key for JWT operations.
-     * Uses HMAC-SHA256 algorithm.
-     * 
-     * @return the SecretKey for signing/validation
+     * Creates the HMAC signing key.
+     *
+     * JJWT requires a sufficiently long secret for HS256.
      */
     private SecretKey getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT secret is not configured"
+            );
+        }
+
+        byte[] keyBytes =
+                jwtSecret.getBytes(StandardCharsets.UTF_8);
+
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

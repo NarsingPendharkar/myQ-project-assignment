@@ -9,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -109,7 +108,7 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
      * 
      * @return total count
      */
-    long countAll();
+    long count();
 
     /**
      * Counts non-archived events.
@@ -182,4 +181,11 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
             @Param("resourceType") String resourceType,
             @Param("resourceId") String resourceId,
             Pageable pageable);
+
+    Page<AuditEvent> findByResourceTypeAndResourceIdAndEventType(
+            String resourceType,
+            String resourceId,
+            String eventType,
+            Pageable pageable
+    );
 }
