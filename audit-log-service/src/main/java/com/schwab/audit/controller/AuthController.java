@@ -1,10 +1,14 @@
 package com.schwab.audit.controller;
 
 import com.schwab.audit.dto.request.LoginRequest;
+import com.schwab.audit.dto.request.RegisterRequest;
 import com.schwab.audit.dto.response.LoginResponse;
+import com.schwab.audit.dto.response.RegisterResponse;
 import com.schwab.audit.entity.User;
+import com.schwab.audit.exception.BadRequestException;
 import com.schwab.audit.exception.UnauthorizedException;
 import com.schwab.audit.security.JwtService;
+import com.schwab.audit.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,9 +29,10 @@ import org.springframework.web.bind.annotation.*;
 /**
  * REST Controller for authentication operations.
  * 
- * Provides JWT-based login for all user roles.
+ * Provides JWT-based authentication and user registration for all user roles.
  * 
  * API Endpoints:
+ * - POST /api/v1/auth/register: Register a new user account
  * - POST /api/v1/auth/login: Authenticate user and receive JWT token
  */
 @RestController
@@ -39,6 +44,70 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final UserService userService;
+
+    /**
+     * Registers a new user account.
+     * 
+     * Request body:
+     * {
+     *   "username": "string",
+     *   "password": "string",
+     *   "role": "AUDIT_WRITER|AUDITOR|ADMIN"
+     * }
+     * 
+     * Response:
+     * {
+     *   "userId": 1,
+     *   "username": "newuser",
+     *   "role": "AUDITOR",
+     *   "message": "User registered successfully"
+     * }
+     * 
+     * @param registerRequest credentials and role for the new user
+     * @return RegisterResponse with newly created user information
+     * @throws BadRequestException if username already exists or validation fails
+     */
+    @PostMapping("/register")
+    @Operation(
+        summary = "User registration",
+        description = "Register a new user account with username, password, and role. Returns user information on success."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "201",
+            description = "User registered successfully",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = RegisterResponse.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid request (missing fields, username already taken, invalid role, or password too short)"
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Internal server error"
+        )
+    })
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
+        try {
+            log.info("Processing registration request for username: {}", registerRequest.getUsername());
+            
+            RegisterResponse response = userService.registerUser(registerRequest);
+            
+            log.info("User registered successfully: {}", registerRequest.getUsername());
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            
+        } catch (BadRequestException e) {
+            log.warn("Registration validation failed: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error during registration", e);
+            throw new RuntimeException("Registration failed due to unexpected error", e);
+        }
+    }
 
     /**
      * Authenticates a user and returns a JWT token.

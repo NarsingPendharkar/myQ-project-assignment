@@ -1,6 +1,5 @@
 package com.schwab.audit.security;
 
-import com.schwab.audit.entity.User;
 import com.schwab.audit.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
