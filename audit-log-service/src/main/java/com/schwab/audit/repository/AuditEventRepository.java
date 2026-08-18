@@ -164,4 +164,22 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
      * @return true if hash exists
      */
     boolean existsByContentHash(String contentHash);
+
+    /**
+     * Finds events by all four criteria combined (most specific query).
+     * 
+     * @param eventType the event type
+     * @param actorId the actor ID
+     * @param resourceType the resource type
+     * @param resourceId the resource ID
+     * @param pageable pagination info
+     * @return page of matching events
+     */
+    @Query("SELECT ae FROM AuditEvent ae WHERE ae.eventType = :eventType AND ae.actorId = :actorId AND ae.resourceType = :resourceType AND ae.resourceId = :resourceId ORDER BY ae.chainPosition DESC")
+    Page<AuditEvent> findByEventTypeAndActorIdAndResourceTypeAndResourceId(
+            @Param("eventType") String eventType,
+            @Param("actorId") String actorId,
+            @Param("resourceType") String resourceType,
+            @Param("resourceId") String resourceId,
+            Pageable pageable);
 }
