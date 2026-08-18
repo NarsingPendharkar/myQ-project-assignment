@@ -16,9 +16,9 @@
 - Create Maven project structure
 - Add Spring Boot 3.x parent POM
 - Add dependencies: spring-boot-starter-web, spring-boot-starter-data-jpa, spring-boot-starter-security, spring-boot-starter-validation
-- Add test dependencies: spring-boot-starter-test, junit-5, mockito, testcontainers (PostgreSQL)
+- Add test dependencies: spring-boot-starter-test, junit-5, mockito, testcontainers
 - Add utility dependencies: lombok, springdoc-openapi (Swagger)
-- Add PostgreSQL JDBC driver
+- Add H2 JDBC driver and Flyway H2 support
 - Configure Maven properties: Java 21 source/target, project encoding
 
 **Files Created:**
@@ -30,12 +30,12 @@
 ---
 
 ### Commit 2: Database Configuration and Schema
-**Objective:** Configure PostgreSQL connection and create audit events schema (V1 migration).
+**Objective:** Configure H2 database and create audit events schema (V1 migration).
 
 **Tasks:**
-- Create application.properties with PostgreSQL datasource configuration
-- Create application-dev.properties for development (H2 for quick testing)
-- Create application-test.properties for automated testing (testcontainers)
+- Create application.properties with H2 datasource configuration
+- Create application-dev.properties for development (H2 in-memory for quick testing)
+- Create application-test.properties for automated testing (H2)
 - Create V1__initial_schema.sql Flyway migration:
   - audit_events table (id, eventType, actorId, resourceType, resourceId, payload, timestamp, contentHash, previousHash, chainPosition, archived, archivedAt, redactionMetadata, createdAt, updatedAt)
   - users table (id, username, passwordHash, role, createdAt)
@@ -322,7 +322,7 @@
   - `shouldQueryEventsByTimeRange()`
   - `shouldPaginateResults()`
   - Use MockMvc to test HTTP layer
-  - Use @SpringBootTest with testcontainers PostgreSQL
+  - Use @SpringBootTest with H2 in-memory database
 - Write integration tests for ChainVerificationController:
   - `shouldVerifyIntactChain()`
   - `shouldDetectTamperingWhenRecordIsModified()`
