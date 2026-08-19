@@ -189,7 +189,7 @@ src/test/java/com/schwab/audit/
    - `GET /api/v1/audit/events` — Query with filters
    
 2. **ChainVerificationController**
-   - `GET /api/v1/audit/verify` — Verify chain integrity
+   - `POST /api/v1/audit/events/verify-chain` — Verify chain integrity (implemented API)
    
 3. **RedactionController** (SCN-B)
    - `PATCH /api/v1/audit/events/{id}/redact` — Redact sensitive fields
@@ -774,7 +774,7 @@ Response: 200 OK
 
 #### 3. Verify Chain
 ```
-GET /api/v1/audit/verify
+POST /api/v1/audit/events/verify-chain
 
 Response: 200 OK
 {
@@ -996,7 +996,7 @@ app.pagination.max-size=100
 
 # Server
 server.servlet.context-path=/
-server.port=8080
+server.port=8282
 ```
 
 **Profiles:**

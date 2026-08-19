@@ -16,7 +16,15 @@ This log summarizes the work recorded in this repository's Git history. It can b
 - Implemented JWT authentication, role-based authorization, login, user registration, and global error handling.
 - Implemented tamper-evident audit-event storage, a hash-chain verification flow, querying, archiving, redaction, retention, reporting, and JSON/CSV export.
 - Added automated unit and integration tests, interactive HTTP request samples, API reference documentation, and Swagger/OpenAPI documentation.
-- Ran the complete Maven test suite after the Swagger work: **143 tests passed, 0 failures** (local verification on 19 August 2026).
+- Latest local verification: **144 tests passed, 0 failures, 0 errors**.
+
+## Current security and integrity remediation
+
+- Public self-registration was disabled; `POST /api/v1/auth/register` requires an authenticated `ADMIN`.
+- The application requires `JWT_SECRET` (32 bytes or more) and supports one-time first-admin initialization through `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD`.
+- Chain verification now recomputes each stored event's content hash before checking chain linkage.
+- Redaction is recorded separately and applied only to API/JSON-export views, preserving the original hash-protected event.
+- Login attempts are throttled, chain appends lock the tail transactionally, and exports/retention use configured bounds.
 
 ## Commit-by-commit activity
 

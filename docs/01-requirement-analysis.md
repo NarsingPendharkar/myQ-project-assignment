@@ -216,6 +216,8 @@ Result of verifying the hash chain integrity.
 
 **Endpoint:** `GET /api/v1/audit/verify`
 
+**Implementation decision:** The current service exposes verification as `POST /api/v1/audit/events/verify-chain`, protected for `AUDITOR` or `ADMIN`. This documentation retains the original requirement endpoint for traceability; the implemented endpoint is documented in `audit-log-service/API-REFERENCE.md` and Swagger.
+
 **Response (200 OK):**
 ```json
 {

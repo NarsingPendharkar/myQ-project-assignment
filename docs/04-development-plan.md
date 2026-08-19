@@ -62,7 +62,7 @@
   - Configure authentication providers (UserDetailsService)
   - Configure authorization (path patterns, roles)
   - Add JwtAuthenticationFilter
-  - CORS restricted to localhost:8080 (dev)
+  - CORS restricted to configured local development origins (the service default port is 8282)
 - Create JwtService (token generation/validation):
   - Issue JWT with user id, role, expiry (24 hours)
   - Validate JWT, extract claims
@@ -233,7 +233,7 @@
 ---
 
 ### Commit 7: Chain Verification Endpoint
-**Objective:** Implement GET /api/v1/audit/verify endpoint to detect tampering via hash chain validation.
+**Objective:** Implement the chain-verification endpoint to detect tampering via hash-chain validation. The delivered endpoint is `POST /api/v1/audit/events/verify-chain`.
 
 **Tasks:**
 - Create ChainVerificationService:
@@ -250,7 +250,7 @@
 - Extend AuditEventRepository:
   - `findCompleteChain()`: SELECT all records ordered by chain_position
 - Create ChainVerificationController:
-  - `GET /api/v1/audit/verify`
+  - `POST /api/v1/audit/events/verify-chain`
   - @PreAuthorize("hasAnyRole('AUDITOR', 'ADMIN')")
   - Call ChainVerificationService.verifyChain()
   - Return 200 with ChainVerificationResponse
@@ -264,7 +264,7 @@
 - src/main/java/com/schwab/audit/repository/AuditEventRepository.java (modify: add findCompleteChain)
 - src/test/java/com/schwab/audit/service/ChainVerificationServiceTest.java (new)
 
-**Deliverable:** GET /api/v1/audit/verify detects chain integrity violations.
+**Deliverable:** `POST /api/v1/audit/events/verify-chain` detects chain integrity violations.
 
 ---
 
@@ -397,7 +397,7 @@
   - Include request/response examples
   - Document validation errors
   - Document authorization requirements
-- Test Swagger UI at http://localhost:8080/swagger-ui.html
+- Test Swagger UI at http://localhost:8282/swagger-ui.html
 
 **Files Created/Modified:**
 - src/main/java/com/schwab/audit/config/OpenApiConfig.java (new)
@@ -783,34 +783,13 @@
 
 ---
 
-## Summary of Commits
+## Historical Delivery Plan and Current Status
+
+The table below originated as a plan. The current repository implements the listed Scenario A, B, and C capabilities and the latest local verification completed with 144 passing tests. Git history—not this plan—remains the source of truth for commit-level provenance.
 
 | Commit # | Title | Scenario | Files | Status |
 |----------|-------|----------|-------|--------|
-| 1 | Project setup and dependencies | Foundation | 2 | NOT STARTED |
-| 2 | Database configuration and schema | A | 4 | NOT STARTED |
-| 3 | Security foundation (JWT + auth) | A | 10 | NOT STARTED |
-| 4 | Core entities and DTOs | A | 14 | NOT STARTED |
-| 5 | Write API (create event) | A | 12 | NOT STARTED |
-| 6 | Query API (retrieve events) | A | 3 | NOT STARTED |
-| 7 | Chain verification endpoint | A | 5 | NOT STARTED |
-| 8 | Unit tests for Scenario A | A | 5 | NOT STARTED |
-| 9 | Integration tests for Scenario A | A | 3 | NOT STARTED |
-| 10 | Exception handling | A | 6 | NOT STARTED |
-| 11 | OpenAPI/Swagger documentation | A | 3 | NOT STARTED |
-| 12 | Database schema extension (archive) | B | 2 | NOT STARTED |
-| 13 | Redaction service | B | 6 | NOT STARTED |
-| 14 | Archive service | B | 5 | NOT STARTED |
-| 15 | Bulk export service | B | 4 | NOT STARTED |
-| 16 | Integration tests for Scenario B | B | 3 | NOT STARTED |
-| 17 | Documentation for Scenario B | B | 1 | NOT STARTED |
-| 18 | Clarify compliance requirement | C | 1 | NOT STARTED |
-| 19 | Compliance report service | C | 5 | NOT STARTED |
-| 20 | Compliance export with metadata | C | 3 | NOT STARTED |
-| 21 | Integration tests for Scenario C | C | 1 | NOT STARTED |
-| 22 | Documentation for Scenario C | C | 2 | NOT STARTED |
-| 23 | Final testing and QA | All | - | NOT STARTED |
-| 24 | Final documentation and cleanup | All | 3 | NOT STARTED |
+| 1–24 | Planned Scenario A, B, C, testing, and documentation milestones | All | See Git history | IMPLEMENTED; current verification: 144 passing tests |
 
 **Total Estimated:**
 - ~110 source files

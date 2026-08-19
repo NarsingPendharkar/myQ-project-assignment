@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a production-grade, tamper-evident audit log service implementing append-only event logging with SHA-256 hash chain verification. The implementation follows a 24-commit sequential delivery plan across three scenarios.
+This is a tamper-evident audit log service implementing append-only event logging with SHA-256 hash-chain verification. The implementation covers the planned Scenario A, B, and C capabilities; the Git history is the source of truth for commit provenance.
 
 ## Architecture
 
@@ -44,6 +44,7 @@ This is a production-grade, tamper-evident audit log service implementing append
 
 **REST Endpoints:**
 - `POST /api/v1/auth/login` - User authentication
+- `POST /api/v1/auth/register` - Create a user (ADMIN only)
 - `POST /api/v1/audit/events` - Create event
 - `GET /api/v1/audit/events` - List with pagination
 - `GET /api/v1/audit/events/{id}` - Event details
@@ -110,15 +111,18 @@ This is a production-grade, tamper-evident audit log service implementing append
 
 ### Authentication
 - JWT tokens (HS256) with 24-hour expiry
-- Secret loaded from `JWT_SECRET` environment variable
+- `JWT_SECRET` must be provided and contain at least 32 bytes; the application does not use a production fallback secret
 - `JwtAuthenticationFilter` intercepts all requests
 - `CustomUserDetailsService` loads users from database
+- A first administrator can be created only when no ADMIN exists and both `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` are set. The password is BCrypt-hashed before persistence.
+- Login throttling limits a username to five failed attempts per 15-minute window (per application instance).
 
 ### Authorization
 Three roles with specific permissions:
 - **AUDIT_WRITER**: Can create events (`POST /audit/events`)
 - **AUDITOR**: Can read/verify events (all `GET /audit/*`)
 - **ADMIN**: Full access including redaction, export, compliance
+- `POST /api/v1/auth/register` is ADMIN-only; anonymous users cannot self-register or choose an ADMIN role.
 
 ### Cryptography
 - SHA-256 hashing for content integrity
@@ -132,7 +136,7 @@ Three roles with specific permissions:
 - **Unit Tests**: 40+ tests for services and entities
 - **Integration Tests**: 30+ tests for repositories and APIs
 - **Controller Tests**: 20+ tests for REST endpoints
-- **Total**: 90+ tests with comprehensive coverage
+- **Latest local verification**: 144 tests passed, 0 failures, 0 errors
 
 ### Test Profiles
 - `application-test.properties` - H2 in-memory with test configuration
@@ -156,6 +160,8 @@ Three roles with specific permissions:
 ### Environment Variables
 ```bash
 JWT_SECRET=your-secret-key-here
+BOOTSTRAP_ADMIN_USERNAME=admin
+BOOTSTRAP_ADMIN_PASSWORD=strong-one-time-bootstrap-password
 SPRING_PROFILES_ACTIVE=prod
 SPRING_DATASOURCE_URL=jdbc:postgresql://host:5432/audit_log_db
 SPRING_DATASOURCE_USERNAME=postgres
@@ -229,7 +235,7 @@ docker run -e JWT_SECRET=secret -e SPRING_DATASOURCE_URL=jdbc:postgresql://db:54
 
 ### Create Audit Event (AUDIT_WRITER)
 ```bash
-curl -X POST http://localhost:8080/api/v1/audit/events \
+curl -X POST http://localhost:8282/api/v1/audit/events \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -243,31 +249,30 @@ curl -X POST http://localhost:8080/api/v1/audit/events \
 
 ### Query Events (AUDITOR)
 ```bash
-curl http://localhost:8080/api/v1/audit/events?page=0&size=20 \
+curl http://localhost:8282/api/v1/audit/events?page=0&size=20 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Verify Chain (AUDITOR)
 ```bash
-curl -X POST http://localhost:8080/api/v1/audit/events/verify-chain \
+curl -X POST http://localhost:8282/api/v1/audit/events/verify-chain \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Redact Event (ADMIN)
 ```bash
-curl -X POST http://localhost:8080/api/v1/compliance/redact/123 \
+curl -X POST http://localhost:8282/api/v1/compliance/redact/123 \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "fields": ["email", "phone"],
-    "reason": "GDPR request",
-    "redactedBy": "admin1"
+    "reason": "GDPR request"
   }'
 ```
 
 ### Generate Compliance Report (ADMIN)
 ```bash
-curl "http://localhost:8080/api/v1/compliance/reports/compliance?startDate=2024-01-01T00:00:00&endDate=2024-12-31T23:59:59" \
+curl "http://localhost:8282/api/v1/compliance/reports/compliance?startDate=2024-01-01T00:00:00&endDate=2024-12-31T23:59:59" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -290,6 +295,14 @@ curl "http://localhost:8080/api/v1/compliance/reports/compliance?startDate=2024-
 
 ## Future Enhancements
 
+## Current integrity and data-handling controls
+
+- Complete-chain verification recomputes every stored event content hash before checking its chain link and position.
+- Redaction metadata is stored separately in `audit_event_redactions`; the original hash-protected event payload is not updated.
+- API responses and JSON exports mask fields recorded for redaction with `***REDACTED***`.
+- Exports/reports are bounded by `app.audit.query.max-export-size` (default 10,000); retention archives records in `app.audit.retention.batch-size` batches (default 500).
+- Audit appends use a serializable transaction and a pessimistic lock on the current chain tail. A multi-node deployment should still validate this approach with the target production database.
+
 - Implement distributed tracing (Spring Cloud Sleuth)
 - Add multi-tenant support per organization
 - Implement event streaming (Kafka/RabbitMQ)
@@ -301,4 +314,4 @@ curl "http://localhost:8080/api/v1/compliance/reports/compliance?startDate=2024-
 
 ---
 
-**Completed**: All 24 commits implemented with Scenarios A, B, and C fully functional.
+**Current verification**: `./mvnw.cmd test` completed with 144 tests passed, 0 failures, and 0 errors. Production deployment still requires a configured `JWT_SECRET` and a production database configuration.

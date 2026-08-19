@@ -8,9 +8,21 @@
 
 | Scenario | Status | Completion |
 |----------|--------|-----------|
-| SCN-A: Core Audit Log Service | IN PROGRESS | 15% |
-| SCN-B: Retention and Redaction | NOT STARTED | 0% |
-| SCN-C: Compliance Reporting | NOT STARTED | 0% |
+| SCN-A: Core Audit Log Service | IMPLEMENTED | 100% |
+| SCN-B: Retention and Redaction | IMPLEMENTED | 100% |
+| SCN-C: Compliance Reporting | IMPLEMENTED | 100% |
+
+## Current implementation note
+
+The task-level notes below are the original plan and are retained for traceability. The implementation now includes the write/query/verification APIs, retention, redaction, export, compliance reporting, JWT/RBAC security, and automated tests. The authoritative current endpoint behavior is documented in `audit-log-service/IMPLEMENTATION.md` and Swagger.
+
+Security and integrity controls added after the original plan:
+
+- `POST /api/v1/auth/register` requires `ADMIN`; first-admin bootstrap uses `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` only when no admin exists.
+- `JWT_SECRET` is mandatory and must be at least 32 bytes.
+- Full-chain verification recomputes every event content hash before checking positions and links.
+- Redaction is an output-view transformation; the stored hash-protected payload is not changed.
+- Login attempts are throttled; exports/reports and retention are bounded by configuration.
 
 ---
 
@@ -81,7 +93,7 @@ Implement the foundational audit log system with write, query, and chain verific
 
 **Requirement:** REQ-004 to REQ-011
 
-**Implementation Status:** NOT STARTED
+**Implementation Status:** IMPLEMENTED (see current implementation note above)
 
 **Classes Involved:**
 - Controller: `AuditEventController.createEvent()`
@@ -147,7 +159,7 @@ Response: 201 Created, AuditEventResponse
 
 **Requirement:** REQ-012 to REQ-017
 
-**Implementation Status:** NOT STARTED
+**Implementation Status:** IMPLEMENTED (see current implementation note above)
 
 **Classes Involved:**
 - Controller: `AuditEventController.queryEvents()`
@@ -204,7 +216,7 @@ Response: 200 OK, PaginatedResponse<AuditEventResponse>
 
 **Requirement:** REQ-018 to REQ-024
 
-**Implementation Status:** NOT STARTED
+**Implementation Status:** IMPLEMENTED (implemented endpoint: `POST /api/v1/audit/events/verify-chain`)
 
 **Classes Involved:**
 - Controller: `ChainVerificationController.verifyChain()`
@@ -215,7 +227,7 @@ Response: 200 OK, PaginatedResponse<AuditEventResponse>
 
 **API:**
 ```
-GET /api/v1/audit/verify
+POST /api/v1/audit/events/verify-chain
 
 Response: 200 OK, ChainVerificationResponse
 {
@@ -342,7 +354,7 @@ Extend Scenario A with record retention policies and structured field redaction 
 - UC-005: Archive Old Records
 - UC-006: Export Compliance Bundle
 
-**Status:** NOT STARTED
+**Status:** IMPLEMENTED
 
 **Implementation Plan:**
 - Add `archived`, `archivedAt`, `redactionMetadata` fields to AuditEvent
@@ -364,7 +376,7 @@ Address the ambiguous compliance requirement by implementing compliance-specific
 ### Use Cases Implemented (TBD)
 - UC-007: Generate Compliance Report
 
-**Status:** NOT STARTED
+**Status:** IMPLEMENTED
 
 **Implementation Plan:**
 - Implement resource type tagging (ACCOUNT vs. other)
@@ -420,8 +432,8 @@ Address the ambiguous compliance requirement by implementing compliance-specific
 | Synchronous verification (O(n)) | SCN-A | Acceptable for 1M+ records | Batch verification, caching (SCN-B) |
 | No distributed tracing | All | Not required for MVP | Add Spring Cloud Sleuth |
 | Single-server deployment | All | Works for < 5000 events/sec | Consider sharding by resource_id |
-| No API rate limiting | All | Implement later | Add Spring Cloud Gateway |
-| No audit log rotation/archival job | All | Manual for MVP | Implement scheduled archival task |
+| Per-instance login throttling | All | Five failed attempts per username in a 15-minute window | Use a shared store for distributed deployments |
+| No distributed append coordinator | All | Serializable transaction and pessimistic tail lock | Add database-backed chain-head allocation for multi-node deployments |
 
 ---
 
@@ -429,14 +441,14 @@ Address the ambiguous compliance requirement by implementing compliance-specific
 
 | Requirement | Scenario | API Endpoint | Service Method | Status |
 |-------------|----------|-------------|-----------------|--------|
-| REQ-001 | SCN-A | POST /audit/events | createEvent() | NOT STARTED |
-| REQ-004 | SCN-A | POST /audit/events | createEvent() | NOT STARTED |
-| REQ-012 | SCN-A | GET /audit/events | queryEvents() | NOT STARTED |
-| REQ-018 | SCN-A | GET /audit/verify | verifyChain() | NOT STARTED |
-| REQ-025 | SCN-B | (implicit archival) | archiveOldRecords() | NOT STARTED |
-| REQ-029 | SCN-B | PATCH /audit/events/{id}/redact | redactFields() | NOT STARTED |
-| REQ-035 | SCN-B | POST /audit/export | exportByResourceId() | NOT STARTED |
-| REQ-039 | SCN-C | GET /compliance/report | generateReport() | NOT STARTED |
+| REQ-001 | SCN-A | POST /api/v1/audit/events | AuditEventService.createAuditEvent() | IMPLEMENTED |
+| REQ-004 | SCN-A | POST /api/v1/audit/events | AuditEventService.createAuditEvent() | IMPLEMENTED |
+| REQ-012 | SCN-A | GET /api/v1/audit/events and search endpoints | AuditEventQueryService | IMPLEMENTED |
+| REQ-018 | SCN-A | POST /api/v1/audit/events/verify-chain | ChainVerificationService.verifyCompleteChain() | IMPLEMENTED |
+| REQ-025 | SCN-B | POST /api/v1/compliance/retention/apply | RetentionPolicyService.archiveEventsOlderThan() | IMPLEMENTED |
+| REQ-029 | SCN-B | POST /api/v1/compliance/redact/{eventId} | RedactionService.redactEvent() | IMPLEMENTED |
+| REQ-035 | SCN-B | GET /api/v1/compliance/export/json or /csv | ExportService | IMPLEMENTED |
+| REQ-039 | SCN-C | GET /api/v1/compliance/reports/compliance | ComplianceReportingService.generateComplianceReport() | IMPLEMENTED |
 
 ---
 
