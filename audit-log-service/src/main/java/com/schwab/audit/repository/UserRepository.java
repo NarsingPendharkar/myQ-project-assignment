@@ -1,6 +1,7 @@
 package com.schwab.audit.repository;
 
 import com.schwab.audit.entity.User;
+import com.schwab.audit.entity.enums.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -28,4 +29,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return true if user exists, false otherwise
      */
     boolean existsByUsername(String username);
+    long countByRole(UserRole role);
 }

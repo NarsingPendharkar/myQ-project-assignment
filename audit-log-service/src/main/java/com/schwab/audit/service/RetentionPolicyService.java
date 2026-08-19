@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,6 +32,8 @@ public class RetentionPolicyService {
 
     @Value("${app.audit.retention.days:365}")
     private int defaultRetentionDays;
+    @Value("${app.audit.retention.batch-size:500}")
+    private int archiveBatchSize;
 
     /**
      * Creates a new retention policy.
@@ -96,17 +100,18 @@ public class RetentionPolicyService {
     public long archiveEventsOlderThan(LocalDateTime cutoffDate) {
         log.debug("Archiving events older than: {}", cutoffDate);
 
-        List<AuditEvent> eventsToArchive = auditEventRepository.findByArchivedFalse(
-                org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE))
-                .stream()
-                .filter(e -> e.getCreatedAt().isBefore(cutoffDate) && !e.getArchived())
-                .toList();
-
         long count = 0;
-        for (AuditEvent event : eventsToArchive) {
-            event.markAsArchived();
-            auditEventRepository.save(event);
-            count++;
+        while (true) {
+            List<AuditEvent> eventsToArchive = auditEventRepository
+                    .findByArchivedFalseAndCreatedAtBefore(cutoffDate, PageRequest.of(0, Math.max(1, archiveBatchSize)))
+                    .toList();
+            if (eventsToArchive.isEmpty()) break;
+            for (AuditEvent event : eventsToArchive) {
+                event.markAsArchived();
+                auditEventRepository.save(event);
+                count++;
+            }
+            auditEventRepository.flush();
         }
 
         log.info("Archived {} events older than {}", count, cutoffDate);

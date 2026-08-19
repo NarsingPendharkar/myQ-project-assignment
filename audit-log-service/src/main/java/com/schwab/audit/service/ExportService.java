@@ -6,6 +6,7 @@ import com.schwab.audit.repository.AuditEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,10 @@ public class ExportService {
 
     private final AuditEventRepository auditEventRepository;
     private final ObjectMapper objectMapper;
+    private final RedactedPayloadViewService redactedPayloadViewService;
+
+    @Value("${app.audit.query.max-export-size:10000}")
+    private int maxExportSize;
 
     /**
      * Exports all events as JSON array.
@@ -35,11 +40,17 @@ public class ExportService {
     public String exportAsJson() {
         log.debug("Exporting all events as JSON");
 
-        List<AuditEvent> events = auditEventRepository.findAll(PageRequest.of(0, Integer.MAX_VALUE / 100))
+        List<AuditEvent> events = auditEventRepository.findAll(PageRequest.of(0, exportSize()))
                 .toList();
 
         try {
-            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(events);
+            List<java.util.Map<String, Object>> view = events.stream().map(event -> java.util.Map.<String, Object>of(
+                    "id", event.getId(), "eventType", event.getEventType(), "actorId", event.getActorId(),
+                    "resourceType", event.getResourceType(), "resourceId", event.getResourceId(),
+                    "payload", payloadForView(event), "timestamp", event.getTimestamp(),
+                    "contentHash", event.getContentHash(), "previousHash", event.getPreviousHash(), "chainPosition", event.getChainPosition()))
+                    .toList();
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(view);
         } catch (Exception e) {
             log.error("Failed to export as JSON", e);
             throw new RuntimeException("Export failed", e);
@@ -60,7 +71,7 @@ public class ExportService {
         sw.append("ID,Event Type,Actor ID,Resource Type,Resource ID,Timestamp,Chain Position,Archived\n");
 
         // Fetch events and write rows
-        List<AuditEvent> events = auditEventRepository.findAll(PageRequest.of(0, Integer.MAX_VALUE / 100))
+        List<AuditEvent> events = auditEventRepository.findAll(PageRequest.of(0, exportSize()))
                 .toList();
 
         for (AuditEvent event : events) {
@@ -116,5 +127,13 @@ public class ExportService {
             return "\"" + value.replace("\"", "\"\"") + "\"";
         }
         return value;
+    }
+
+    private int exportSize() {
+        return maxExportSize > 0 ? maxExportSize : 10_000;
+    }
+
+    private String payloadForView(AuditEvent event) {
+        return redactedPayloadViewService == null ? event.getPayload() : redactedPayloadViewService.payloadForView(event);
     }
 }

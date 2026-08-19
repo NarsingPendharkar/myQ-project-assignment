@@ -5,6 +5,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -78,6 +80,8 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
      */
     Page<AuditEvent> findByArchivedFalse(Pageable pageable);
 
+    Page<AuditEvent> findByArchivedFalseAndCreatedAtBefore(LocalDateTime cutoffDate, Pageable pageable);
+
     /**
      * Finds all archived events (paginated).
      * 
@@ -94,6 +98,11 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
      */
     @Query("SELECT ae FROM AuditEvent ae ORDER BY ae.chainPosition DESC LIMIT 1")
     Optional<AuditEvent> findLastEvent();
+
+    /** Locks the current chain tail while an append transaction allocates the next position. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT ae FROM AuditEvent ae ORDER BY ae.chainPosition DESC LIMIT 1")
+    Optional<AuditEvent> findLastEventForUpdate();
 
     /**
      * Finds the event by its content hash (unique).

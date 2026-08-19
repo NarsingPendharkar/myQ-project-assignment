@@ -8,6 +8,7 @@ import com.schwab.audit.entity.User;
 import com.schwab.audit.exception.BadRequestException;
 import com.schwab.audit.exception.UnauthorizedException;
 import com.schwab.audit.security.JwtService;
+import com.schwab.audit.security.LoginAttemptService;
 import com.schwab.audit.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -46,6 +47,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserService userService;
+    private final LoginAttemptService loginAttemptService;
 
     /**
      * Registers a new user account.
@@ -162,6 +164,9 @@ public class AuthController {
     })
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         try {
+            if (loginAttemptService.isBlocked(loginRequest.getUsername())) {
+                throw new UnauthorizedException("Too many failed login attempts. Try again later.");
+            }
             // Attempt authentication
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -179,6 +184,7 @@ public class AuthController {
 
             // Log successful login
             log.info("User {} successfully authenticated", user.getUsername());
+            loginAttemptService.clear(user.getUsername());
 
             // Build and return response
             LoginResponse response = LoginResponse.builder()
@@ -191,7 +197,10 @@ public class AuthController {
 
             return ResponseEntity.ok(response);
 
+        } catch (UnauthorizedException e) {
+            throw e;
         } catch (AuthenticationException e) {
+            loginAttemptService.recordFailure(loginRequest.getUsername());
             log.warn("Authentication failed for user: {}", loginRequest.getUsername());
             throw new UnauthorizedException("Invalid username or password", e);
         } catch (Exception e) {

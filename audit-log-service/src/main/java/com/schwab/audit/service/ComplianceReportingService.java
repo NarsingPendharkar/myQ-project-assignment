@@ -5,6 +5,7 @@ import com.schwab.audit.repository.AuditEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,8 @@ import java.util.*;
 public class ComplianceReportingService {
 
     private final AuditEventRepository auditEventRepository;
+    @Value("${app.audit.query.max-export-size:10000}")
+    private int maxQuerySize;
 
     /**
      * Generates a compliance report for a time period.
@@ -38,7 +41,7 @@ public class ComplianceReportingService {
         }
 
         List<AuditEvent> events = auditEventRepository.findByTimestampRange(
-                startDate, endDate, PageRequest.of(0, Integer.MAX_VALUE / 100)).toList();
+                startDate, endDate, PageRequest.of(0, querySize())).toList();
 
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("reportGenerated", LocalDateTime.now());
@@ -83,7 +86,7 @@ public class ComplianceReportingService {
         LocalDateTime endDate = LocalDateTime.now();
 
         List<AuditEvent> events = auditEventRepository.findByActorAndTimestampRange(
-                actorId, startDate, endDate, PageRequest.of(0, Integer.MAX_VALUE / 100)).toList();
+                actorId, startDate, endDate, PageRequest.of(0, querySize())).toList();
 
         Map<String, Object> trail = new LinkedHashMap<>();
         trail.put("actorId", actorId);
@@ -105,7 +108,7 @@ public class ComplianceReportingService {
         log.debug("Generating audit trail for resource: {}/{}", resourceType, resourceId);
 
         List<AuditEvent> events = auditEventRepository.findByResourceTypeAndResourceId(
-                resourceType, resourceId, PageRequest.of(0, Integer.MAX_VALUE / 100)).toList();
+                resourceType, resourceId, PageRequest.of(0, querySize())).toList();
 
         Map<String, Object> trail = new LinkedHashMap<>();
         trail.put("resourceType", resourceType);
@@ -144,5 +147,9 @@ public class ComplianceReportingService {
         result.put("status", isCompliant ? "COMPLIANT" : "NON_COMPLIANT");
 
         return result;
+    }
+
+    private int querySize() {
+        return maxQuerySize > 0 ? maxQuerySize : 10_000;
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -37,6 +38,7 @@ public class AuditEventService {
     private final AuditEventRepository auditEventRepository;
     private final HashUtils hashUtils;
     private final EventContentHasher eventContentHasher;
+    private final RedactedPayloadViewService redactedPayloadViewService;
     private final ChainVerificationService chainVerificationService;
 
     /**
@@ -52,14 +54,14 @@ public class AuditEventService {
      * @param request the audit event creation request
      * @return the created audit event as response DTO
      */
-    @Transactional(readOnly = false)
-    public AuditEventResponse createAuditEvent(CreateAuditEventRequest request) {
+    @Transactional(readOnly = false, isolation = Isolation.SERIALIZABLE)
+    public synchronized AuditEventResponse createAuditEvent(CreateAuditEventRequest request) {
         log.info("Creating audit event - type: {}, actor: {}, resource: {}/{}", 
                  request.getEventType(), request.getActorId(), 
                  request.getResourceType(), request.getResourceId());
 
         // Get the last event to determine chain position and previous hash
-        Optional<AuditEvent> lastEvent = auditEventRepository.findLastEvent();
+        Optional<AuditEvent> lastEvent = auditEventRepository.findLastEventForUpdate();
 
         // Resolve the timestamp once so the value used in the hash is exactly the
         // value persisted on the event. Calling LocalDateTime.now() twice can
@@ -319,7 +321,7 @@ public class AuditEventService {
                 .actorId(event.getActorId())
                 .resourceType(event.getResourceType())
                 .resourceId(event.getResourceId())
-                .payload(event.getPayload())
+                .payload(redactedPayloadViewService.payloadForView(event))
                 .timestamp(event.getTimestamp())
                 .createdAt(event.getCreatedAt())
                 .archivedAt(event.getArchivedAt())
@@ -343,7 +345,7 @@ public class AuditEventService {
                 .actorId(event.getActorId())
                 .resourceType(event.getResourceType())
                 .resourceId(event.getResourceId())
-                .payload(event.getPayload())
+                .payload(redactedPayloadViewService.payloadForView(event))
                 .timestamp(event.getTimestamp())
                 .createdAt(event.getCreatedAt())
                 .updatedAt(event.getUpdatedAt())
@@ -352,9 +354,9 @@ public class AuditEventService {
                 .previousHash(event.getPreviousHash())
                 .chainPosition(event.getChainPosition())
                 .archived(event.getArchived())
-                .redactionMetadata(event.getRedactionMetadata())
+                .redactionMetadata(redactedPayloadViewService.isRedacted(event) ? "Redaction history is available" : null)
                 .isGenesis(event.isGenesis())
-                .isRedacted(event.isRedacted())
+                .isRedacted(redactedPayloadViewService.isRedacted(event))
                 .build();
     }
 }
