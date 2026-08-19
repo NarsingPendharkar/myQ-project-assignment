@@ -401,13 +401,10 @@ class ComplianceReportingServiceTest {
                 result.get("archivedPercentage")
         );
 
-        assertEquals(
-                true,
-                result.get("isCompliant")
-        );
+        assertEquals(false, result.get("isCompliant"));
 
         assertEquals(
-                "COMPLIANT",
+                "NON_COMPLIANT",
                 result.get("status")
         );
 

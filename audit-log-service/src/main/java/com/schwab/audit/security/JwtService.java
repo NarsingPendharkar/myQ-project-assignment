@@ -11,6 +11,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -33,6 +34,14 @@ public class JwtService {
 
     @Value("${app.jwt.expiry-hours:24}")
     private long jwtExpiryHours;
+
+    @PostConstruct
+    void validateConfiguration() {
+        if (jwtSecret == null || jwtSecret.isBlank()
+                || jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET must be configured and contain at least 32 bytes");
+        }
+    }
 
     /**
      * Generates a JWT token for the authenticated user.

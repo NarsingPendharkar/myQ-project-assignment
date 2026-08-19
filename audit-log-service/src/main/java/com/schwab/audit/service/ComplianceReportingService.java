@@ -33,6 +33,9 @@ public class ComplianceReportingService {
      */
     public Map<String, Object> generateComplianceReport(LocalDateTime startDate, LocalDateTime endDate) {
         log.info("Generating compliance report for period: {} to {}", startDate, endDate);
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("startDate must be before or equal to endDate");
+        }
 
         List<AuditEvent> events = auditEventRepository.findByTimestampRange(
                 startDate, endDate, PageRequest.of(0, Integer.MAX_VALUE / 100)).toList();
@@ -134,7 +137,9 @@ public class ComplianceReportingService {
         result.put("archivedPercentage", String.format("%.1f%%", archivePercentage));
 
         // Compliance status
-        boolean isCompliant = archivePercentage >= 0;  // Basic check
+        // A zero-event system is compliant; otherwise, all events must have
+        // been processed by the configured retention policy.
+        boolean isCompliant = totalEvents == 0 || archivedCount == totalEvents;
         result.put("isCompliant", isCompliant);
         result.put("status", isCompliant ? "COMPLIANT" : "NON_COMPLIANT");
 

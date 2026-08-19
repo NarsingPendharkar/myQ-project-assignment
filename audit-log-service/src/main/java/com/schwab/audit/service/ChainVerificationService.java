@@ -27,6 +27,7 @@ public class ChainVerificationService {
 
     private final AuditEventRepository auditEventRepository;
     private final HashUtils hashUtils;
+    private final EventContentHasher eventContentHasher;
 
     /**
      * Verifies the integrity of the complete hash chain.
@@ -60,6 +61,13 @@ public class ChainVerificationService {
             }
 
             AuditEvent currentEvent = currentEventOpt.get();
+
+            // A valid-looking hash and a valid link are insufficient: the hash
+            // must still bind the actual event content stored in the database.
+            if (!verifyEventContentHash(currentEvent, currentEvent.getContentHash())) {
+                log.error("Content hash verification failed at position: {}", position);
+                return false;
+            }
 
             // Verify this event
             if (!verifyEventInternal(currentEvent, previousEvent)) {
@@ -97,6 +105,10 @@ public class ChainVerificationService {
         // Verify content hash format
         if (event.getContentHash() == null || event.getContentHash().length() != Constants.HASH_HEX_LENGTH) {
             log.warn("Invalid content hash format - id: {}", event.getId());
+            return false;
+        }
+
+        if (!verifyEventContentHash(event, event.getContentHash())) {
             return false;
         }
 
@@ -144,7 +156,7 @@ public class ChainVerificationService {
             return false;
         }
 
-        String reconstructedContent = buildEventContent(event);
+        String reconstructedContent = eventContentHasher.buildContent(event);
         String computedHash = hashUtils.computeSha256(reconstructedContent);
 
         boolean isValid = hashUtils.verifyHash(expectedContentHash, computedHash);
@@ -195,25 +207,6 @@ public class ChainVerificationService {
         }
 
         return true;
-    }
-
-    /**
-     * Builds a string representation of the event content for verification.
-     * This must match the format used in AuditEventService.buildEventContent().
-     * 
-     * @param event the event
-     * @return concatenated event content
-     */
-    private String buildEventContent(AuditEvent event) {
-        return String.format(
-                "%s|%s|%s|%s|%s|%s",
-                event.getEventType(),
-                event.getActorId(),
-                event.getResourceType(),
-                event.getResourceId(),
-                event.getPayload() != null ? event.getPayload() : "",
-                event.getTimestamp() != null ? event.getTimestamp().toString() : ""
-        );
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.schwab.audit.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.schwab.audit.dto.request.RedactAuditEventRequest;
 import com.schwab.audit.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -10,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -109,16 +112,12 @@ public class ComplianceController {
     @Operation(summary = "Redact event fields")
     public ResponseEntity<Map<String, String>> redactEvent(
             @PathVariable Long eventId,
-            @RequestBody Map<String, Object> request) throws JsonProcessingException {
+            @Valid @RequestBody RedactAuditEventRequest request,
+            Authentication authentication) throws JsonProcessingException {
         
         log.info("Redacting event: {}", eventId);
         
-        @SuppressWarnings("unchecked")
-        java.util.List<String> fields = (java.util.List<String>) request.get("fields");
-        String reason = (String) request.get("reason");
-        String redactedBy = (String) request.get("redactedBy");
-        
-        redactionService.redactEvent(eventId, fields, reason, redactedBy);
+        redactionService.redactEvent(eventId, request.getFields(), request.getReason(), authentication.getName());
         
         return ResponseEntity.ok(Map.of("message", "Event redacted successfully"));
     }

@@ -24,6 +24,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -69,9 +70,10 @@ public class AuthController {
      * @throws BadRequestException if username already exists or validation fails
      */
     @PostMapping("/register")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(
         summary = "User registration",
-        description = "Register a new user account with username, password, and role. Returns user information on success."
+        description = "Create a user account. ADMIN authorization is required; callers may not self-register or self-escalate."
     )
     @ApiResponses(value = {
         @ApiResponse(

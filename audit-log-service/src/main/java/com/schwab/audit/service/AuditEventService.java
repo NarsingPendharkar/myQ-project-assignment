@@ -36,6 +36,7 @@ public class AuditEventService {
 
     private final AuditEventRepository auditEventRepository;
     private final HashUtils hashUtils;
+    private final EventContentHasher eventContentHasher;
     private final ChainVerificationService chainVerificationService;
 
     /**
@@ -68,7 +69,9 @@ public class AuditEventService {
                 : LocalDateTime.now();
 
         // Build content for hashing
-        String eventContent = buildEventContent(request, eventTimestamp);
+        String eventContent = eventContentHasher.buildContent(
+                request.getEventType(), request.getActorId(), request.getResourceType(),
+                request.getResourceId(), request.getPayload(), eventTimestamp);
         String contentHash = hashUtils.computeSha256(eventContent);
 
         // Check for duplicate event (same content)
@@ -301,25 +304,6 @@ public class AuditEventService {
 
         // Fall back to all events
         return getAllAuditEvents(pageable);
-    }
-
-    /**
-     * Builds a string representation of the event content for hashing.
-     * Order matters for consistent hashing.
-     * 
-     * @param request the event creation request
-     * @return concatenated event content
-     */
-    private String buildEventContent(CreateAuditEventRequest request, LocalDateTime timestamp) {
-        return String.format(
-                "%s|%s|%s|%s|%s|%s",
-                request.getEventType(),
-                request.getActorId(),
-                request.getResourceType(),
-                request.getResourceId(),
-                request.getPayload() != null ? request.getPayload() : "",
-                timestamp.toString()
-        );
     }
 
     /**

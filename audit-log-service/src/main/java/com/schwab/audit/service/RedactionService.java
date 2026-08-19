@@ -54,42 +54,9 @@ public class RedactionService {
             throw new IllegalArgumentException("Event has already been redacted");
         }
 
-        // Parse payload JSON
-        String originalPayload = event.getPayload();
-        Map<String, Object> payloadMap = null;
-        if (originalPayload != null) {
-            try {
-                payloadMap = objectMapper.readValue(originalPayload, Map.class);
-            } catch (Exception e) {
-                log.error("Failed to parse payload JSON", e);
-                throw new RuntimeException("Invalid payload JSON format");
-            }
-        }
-
-        // Mask sensitive fields in payload
-        if (payloadMap != null) {
-            for (String field : fieldsToRedact) {
-                if (payloadMap.containsKey(field)) {
-                    payloadMap.put(field, "***REDACTED***");
-                }
-            }
-        }
-
-        // Update event with redacted payload
-        if (payloadMap != null) {
-            try {
-                event.setPayload(objectMapper.writeValueAsString(payloadMap));
-            } catch (Exception e) {
-                log.error("Failed to serialize redacted payload", e);
-                throw new RuntimeException("Failed to update payload");
-            }
-        }
-
-        // Store redaction metadata
-        String redactionMetadata = buildRedactionMetadata(fieldsToRedact, reason, redactedBy);
-        event.setRedactionMetadata(redactionMetadata);
-
-        // Create redaction record
+        // Audit events are immutable: redaction metadata belongs in the
+        // dedicated history table. Read/export projections can mask the listed
+        // fields without modifying the content covered by contentHash.
         AuditEventRedaction redaction = AuditEventRedaction.builder()
                 .auditEventId(eventId)
                 .redactedFields(objectMapper.writeValueAsString(fieldsToRedact))
@@ -98,7 +65,6 @@ public class RedactionService {
                 .redactedAt(LocalDateTime.now())
                 .build();
 
-        auditEventRepository.save(event);
         redactionRepository.save(redaction);
 
         log.info("Event redacted successfully - id: {}", eventId);
@@ -125,21 +91,4 @@ public class RedactionService {
         return redactionRepository.existsByAuditEventId(eventId);
     }
 
-    /**
-     * Builds JSON metadata about the redaction.
-     */
-    private String buildRedactionMetadata(List<String> fieldsToRedact, String reason, String redactedBy) {
-        try {
-            Map<String, Object> metadata = Map.of(
-                    "fields", fieldsToRedact,
-                    "reason", reason,
-                    "redactedBy", redactedBy,
-                    "redactedAt", LocalDateTime.now().toString()
-            );
-            return objectMapper.writeValueAsString(metadata);
-        } catch (Exception e) {
-            log.error("Failed to build redaction metadata", e);
-            return "{}";
-        }
-    }
 }

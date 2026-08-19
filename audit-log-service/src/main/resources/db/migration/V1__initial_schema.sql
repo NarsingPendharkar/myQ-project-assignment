@@ -12,6 +12,15 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+INSERT INTO users (username, password_hash, role)
+VALUES (
+    'admin',
+    '$2a$12$txQMLox1j60D3HfplbdPT.KR3qwxBuIO8ry2Z8KBJV7tSvUKSw/qq',
+    'ADMIN'
+);
+-- Admin@123 is defult password, hashed using BCrypt with strength 12. Change it after first login.
+
+
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 
 -- Audit Events table with hash chain

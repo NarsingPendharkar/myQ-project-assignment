@@ -109,15 +109,14 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints
                 .requestMatchers("/api/v1/auth/login").permitAll()
-                .requestMatchers("/api/v1/auth/register").permitAll()
+                // Account provisioning is administrative. A public endpoint
+                // accepting a caller supplied role is privilege escalation.
+                .requestMatchers("/api/v1/auth/register").hasRole("ADMIN")
                 
                 // API documentation
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
                 .requestMatchers("/api-docs/**", "/api-docs.yaml").permitAll()
                 .requestMatchers("/webjars/**").permitAll()
-                
-                // H2 Console (dev only)
-                .requestMatchers("/h2-console/**").permitAll()
                 
                 // All other API endpoints require authentication
                 .requestMatchers("/api/v1/**").authenticated()
@@ -126,8 +125,7 @@ public class SecurityConfig {
                 .anyRequest().permitAll()
             )
             .headers(headers -> headers
-                // Required for H2 Console
-                .frameOptions(frameOptions -> frameOptions.disable())
+                .frameOptions(frameOptions -> frameOptions.sameOrigin())
             );
 
         return http.build();

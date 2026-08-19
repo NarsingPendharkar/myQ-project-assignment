@@ -4,6 +4,7 @@ import com.schwab.audit.service.ComplianceReportingService;
 import com.schwab.audit.service.ExportService;
 import com.schwab.audit.service.RedactionService;
 import com.schwab.audit.service.RetentionPolicyService;
+import com.schwab.audit.dto.request.RedactAuditEventRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -263,16 +265,14 @@ class ComplianceControllerTest {
         );
 
         String reason = "Sensitive information";
-        String redactedBy = "admin";
-
-        Map<String, Object> request = Map.of(
-                "fields", fields,
-                "reason", reason,
-                "redactedBy", redactedBy
-        );
+        RedactAuditEventRequest request = new RedactAuditEventRequest();
+        request.setFields(fields);
+        request.setReason(reason);
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getName()).thenReturn("admin");
 
         ResponseEntity<Map<String, String>> response =
-                controller.redactEvent(eventId, request);
+                controller.redactEvent(eventId, request, authentication);
 
         assertNotNull(response);
         assertEquals(200, response.getStatusCode().value());
@@ -286,7 +286,7 @@ class ComplianceControllerTest {
                 eventId,
                 fields,
                 reason,
-                redactedBy
+                "admin"
         );
     }
 
@@ -297,14 +297,14 @@ class ComplianceControllerTest {
 
         List<String> fields = List.of("password");
 
-        Map<String, Object> request = Map.of(
-                "fields", fields,
-                "reason", "PII removal",
-                "redactedBy", "admin"
-        );
+        RedactAuditEventRequest request = new RedactAuditEventRequest();
+        request.setFields(fields);
+        request.setReason("PII removal");
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getName()).thenReturn("admin");
 
         ResponseEntity<Map<String, String>> response =
-                controller.redactEvent(eventId, request);
+                controller.redactEvent(eventId, request, authentication);
 
         assertEquals(200, response.getStatusCode().value());
 

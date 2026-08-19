@@ -242,6 +242,15 @@ class ChainVerificationServiceTest {
     }
 
     @Test
+    @DisplayName("Should detect persisted event content tampering during complete verification")
+    void testVerifyCompleteChain_ContentTampered() {
+        event2.setPayload("{\"field\": \"attacker-change\"}");
+        auditEventRepository.saveAndFlush(event2);
+
+        assertFalse(chainVerificationService.verifyCompleteChain());
+    }
+
+    @Test
     @DisplayName("Should handle event with null previous hash")
     void testVerifyEvent_NullPreviousHash() {
         // Given

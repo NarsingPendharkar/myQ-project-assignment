@@ -111,6 +111,18 @@ public class AuditEvent {
         if (this.timestamp == null) {
             this.timestamp = LocalDateTime.now();
         }
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.updatedAt == null) {
+            this.updatedAt = this.createdAt;
+        }
+        if (this.createdBy == null) {
+            this.createdBy = "system";
+        }
+        if (this.updatedBy == null) {
+            this.updatedBy = this.createdBy;
+        }
     }
 
     /**

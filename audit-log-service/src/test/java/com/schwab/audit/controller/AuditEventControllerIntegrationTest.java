@@ -324,11 +324,14 @@ class AuditEventControllerIntegrationTest {
                 .resourceType("USER_SESSION")
                 .resourceId("session1")
                 .timestamp(LocalDateTime.now())
-                .contentHash("hash1")
                 .previousHash("GENESIS_HASH")
                 .chainPosition(1L)
                 .archived(false)
                 .build();
+
+        event1.setContentHash(hashUtils.computeSha256(String.format("%s|%s|%s|%s|%s|%s",
+                event1.getEventType(), event1.getActorId(), event1.getResourceType(), event1.getResourceId(),
+                event1.getPayload() == null ? "" : event1.getPayload(), event1.getTimestamp())));
 
         AuditEvent event2 = AuditEvent.builder()
                 .eventType("RECORD_UPDATED")
@@ -336,12 +339,14 @@ class AuditEventControllerIntegrationTest {
                 .resourceType("ACCOUNT")
                 .resourceId("account1")
                 .timestamp(LocalDateTime.now())
-                .contentHash("hash2")
-                .previousHash("hash1")
+                .previousHash(event1.getContentHash())
                 .chainPosition(2L)
                 .archived(false)
                 .build();
 
+        event2.setContentHash(hashUtils.computeSha256(String.format("%s|%s|%s|%s|%s|%s",
+                event2.getEventType(), event2.getActorId(), event2.getResourceType(), event2.getResourceId(),
+                event2.getPayload() == null ? "" : event2.getPayload(), event2.getTimestamp())));
         auditEventRepository.saveAll(java.util.List.of(event1, event2));
 
         // When & Then
@@ -369,7 +374,7 @@ class AuditEventControllerIntegrationTest {
                 .build();
         event.setContentHash(hashUtils.computeSha256(String.format("%s|%s|%s|%s|%s|%s",
                 event.getEventType(), event.getActorId(), event.getResourceType(), event.getResourceId(),
-                event.getPayload(), event.getTimestamp())));
+                event.getPayload() == null ? "" : event.getPayload(), event.getTimestamp())));
 
         AuditEvent saved = auditEventRepository.save(event);
 
