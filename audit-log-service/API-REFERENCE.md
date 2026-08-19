@@ -522,10 +522,11 @@ curl -X POST http://localhost:8080/api/v1/audit/events \
 ```
 
 ### Using Postman
-1. Import the OpenAPI specification from `/swagger-ui.html`
+1. Import the OpenAPI specification from `/api-docs`
 2. Create a Bearer Token collection variable
 3. Use `{{token}}` in Authorization header
 
 ### Using Swagger UI
-Navigate to `http://localhost:8080/swagger-ui.html` for interactive API documentation.
+Navigate to `http://localhost:8282/swagger-ui.html` for interactive API documentation.
+The raw OpenAPI JSON specification is available at `http://localhost:8282/api-docs`.
 

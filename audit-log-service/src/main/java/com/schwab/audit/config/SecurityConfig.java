@@ -84,7 +84,7 @@ public class SecurityConfig {
      * 
      * Security Rules:
      * - Public endpoints: POST /api/v1/auth/login
-     * - Public documentation: /swagger-ui.html, /v3/api-docs/**
+     * - Public documentation: /swagger-ui.html, /api-docs/**
      * - Protected endpoints: all other /api/v1/** require authentication
      * - Role-specific access: @PreAuthorize annotations on controllers
      * - Stateless sessions: No SessionCreationPolicy.STATEFUL
@@ -113,7 +113,7 @@ public class SecurityConfig {
                 
                 // API documentation
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
+                .requestMatchers("/api-docs/**", "/api-docs.yaml").permitAll()
                 .requestMatchers("/webjars/**").permitAll()
                 
                 // H2 Console (dev only)
